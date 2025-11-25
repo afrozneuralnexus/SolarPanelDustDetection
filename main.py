@@ -101,21 +101,29 @@ def load_model_and_labels():
 
 # Prediction function
 def predict_image(img, model, labels):
-    # Resize image to model input size
-    img = img.resize((224, 224))
-    
-    # Convert to array and preprocess
-    img_array = image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array = preprocess_input(img_array)
-    
-    # Make prediction
-    predictions = model.predict(img_array)
-    predicted_class_idx = np.argmax(predictions[0])
-    predicted_class = labels[str(predicted_class_idx)]
-    confidence = predictions[0][predicted_class_idx] * 100
-    
-    return predicted_class, confidence, predictions[0]
+    try:
+        # Convert to RGB if necessary (handles PNG with alpha channel)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Resize image to model input size
+        img = img.resize((224, 224))
+        
+        # Convert to array and preprocess
+        img_array = image.img_to_array(img)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = preprocess_input(img_array)
+        
+        # Make prediction with verbosity off
+        predictions = model.predict(img_array, verbose=0)
+        predicted_class_idx = np.argmax(predictions[0])
+        predicted_class = labels[str(predicted_class_idx)]
+        confidence = predictions[0][predicted_class_idx] * 100
+        
+        return predicted_class, confidence, predictions[0]
+    except Exception as e:
+        st.error(f"Error during prediction: {str(e)}")
+        raise e
 
 # Main app
 def main():
@@ -148,35 +156,40 @@ def main():
         # Predict button
         if st.button('🔍 Analyze Image', use_container_width=True):
             with st.spinner('Analyzing...'):
-                predicted_class, confidence, all_predictions = predict_image(img, model, labels)
-                
-                # Display results
-                st.markdown("---")
-                st.subheader("Analysis Results")
-                
-                # Result box with conditional styling
-                if predicted_class.lower() == 'dusty':
-                    st.markdown(f"""
-                        <div class="result-box dusty">
-                            <h2>🚨 Dusty Solar Panel</h2>
-                            <p style="font-size: 1.5em; font-weight: bold;">Confidence: {confidence:.2f}%</p>
-                            <p>⚠️ Cleaning recommended to maintain optimal efficiency</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                        <div class="result-box clean">
-                            <h2>✅ Clean Solar Panel</h2>
-                            <p style="font-size: 1.5em; font-weight: bold;">Confidence: {confidence:.2f}%</p>
-                            <p>👍 Panel is in good condition</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-                
-                # Show detailed predictions
-                with st.expander("View Detailed Predictions"):
-                    for idx, prob in enumerate(all_predictions):
-                        class_name = labels[str(idx)]
-                        st.progress(float(prob), text=f"{class_name}: {prob*100:.2f}%")
+                try:
+                    predicted_class, confidence, all_predictions = predict_image(img, model, labels)
+                    
+                    # Display results
+                    st.markdown("---")
+                    st.subheader("Analysis Results")
+                    
+                    # Result box with conditional styling
+                    if predicted_class.lower() == 'dusty':
+                        st.markdown(f"""
+                            <div class="result-box dusty">
+                                <h2>🚨 Dusty Solar Panel</h2>
+                                <p style="font-size: 1.5em; font-weight: bold;">Confidence: {confidence:.2f}%</p>
+                                <p>⚠️ Cleaning recommended to maintain optimal efficiency</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                            <div class="result-box clean">
+                                <h2>✅ Clean Solar Panel</h2>
+                                <p style="font-size: 1.5em; font-weight: bold;">Confidence: {confidence:.2f}%</p>
+                                <p>👍 Panel is in good condition</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Show detailed predictions
+                    with st.expander("View Detailed Predictions"):
+                        for idx, prob in enumerate(all_predictions):
+                            class_name = labels[str(idx)]
+                            st.progress(float(prob), text=f"{class_name}: {prob*100:.2f}%")
+                            
+                except Exception as e:
+                    st.error("❌ An error occurred during prediction. Please try with a different image.")
+                    st.exception(e)
     
     # Footer
     st.markdown("---")
