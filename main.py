@@ -117,7 +117,29 @@ def predict_image(img, model, labels):
         # Make prediction with verbosity off
         predictions = model.predict(img_array, verbose=0)
         predicted_class_idx = np.argmax(predictions[0])
-        predicted_class = labels[str(predicted_class_idx)]
+        
+        # Debug: Show available labels and predicted index
+        st.write(f"Debug - Predicted index: {predicted_class_idx}")
+        st.write(f"Debug - Available labels: {labels}")
+        st.write(f"Debug - Label keys: {list(labels.keys())}")
+        
+        # Try different key formats
+        label_key = None
+        if str(predicted_class_idx) in labels:
+            label_key = str(predicted_class_idx)
+        elif int(predicted_class_idx) in labels:
+            label_key = int(predicted_class_idx)
+        elif predicted_class_idx in labels:
+            label_key = predicted_class_idx
+        
+        if label_key is None:
+            st.error(f"Could not find label for index {predicted_class_idx}")
+            st.error(f"Available labels: {labels}")
+            # Fallback
+            predicted_class = "Unknown"
+        else:
+            predicted_class = labels[label_key]
+        
         confidence = predictions[0][predicted_class_idx] * 100
         
         return predicted_class, confidence, predictions[0]
