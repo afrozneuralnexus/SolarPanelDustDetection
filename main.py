@@ -52,26 +52,51 @@ st.markdown("""
 @st.cache_resource
 def load_model_and_labels():
     try:
-        # Check if files exist
-        model_path = 'inception_dust_model.h5'
-        labels_path = 'labels.json'
+        # Get current directory and list files
+        current_dir = os.getcwd()
+        files_in_dir = os.listdir(current_dir)
         
-        if not os.path.exists(model_path):
-            st.error(f"❌ Model file not found: {model_path}")
-            st.info("📁 Please upload 'inception_dust_model.h5' to your GitHub repository")
+        # Debug information
+        st.info(f"📂 Current directory: {current_dir}")
+        st.info(f"📄 Files found: {', '.join(files_in_dir)}")
+        
+        # Try multiple possible paths
+        possible_paths = [
+            ('inception_dust_model.h5', 'labels.json'),
+            (os.path.join(current_dir, 'inception_dust_model.h5'), os.path.join(current_dir, 'labels.json')),
+        ]
+        
+        model_path = None
+        labels_path = None
+        
+        for mp, lp in possible_paths:
+            if os.path.exists(mp) and os.path.exists(lp):
+                model_path = mp
+                labels_path = lp
+                break
+        
+        if model_path is None:
+            st.error("❌ Model file 'inception_dust_model.h5' not found")
+            st.warning("Please ensure the file is uploaded to the root of your GitHub repository")
             return None, None
             
-        if not os.path.exists(labels_path):
-            st.error(f"❌ Labels file not found: {labels_path}")
-            st.info("📁 Please upload 'labels.json' to your GitHub repository")
+        if labels_path is None:
+            st.error("❌ Labels file 'labels.json' not found")
+            st.warning("Please ensure the file is uploaded to the root of your GitHub repository")
             return None, None
+        
+        st.success(f"✅ Found model at: {model_path}")
+        st.success(f"✅ Found labels at: {labels_path}")
         
         model = load_model(model_path)
         with open(labels_path, 'r') as f:
             labels = json.load(f)
+        
+        st.success("✅ Model and labels loaded successfully!")
         return model, labels
     except Exception as e:
         st.error(f"❌ Error loading model or labels: {str(e)}")
+        st.exception(e)
         return None, None
 
 # Prediction function
@@ -164,4 +189,3 @@ def main():
 
 if __name__ == "__main__":
     main()
- 
