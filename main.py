@@ -89,9 +89,24 @@ def load_model_and_labels():
         st.success(f"✅ Found labels at: {labels_path}")
         
         model = load_model(model_path)
-        with open(labels_path, 'r') as f:
-            labels = json.load(f)
         
+        # Read and parse labels - handle different formats
+        with open(labels_path, 'r') as f:
+            labels_data = json.load(f)
+        
+        # Check if labels are nested (common issue)
+        if isinstance(labels_data, dict):
+            if 'data' in labels_data:
+                # Handle nested structure
+                st.warning("Labels file has unexpected structure. Using simple mapping.")
+                labels = {"0": "Clean", "1": "Dusty"}
+            else:
+                labels = labels_data
+        else:
+            st.warning("Labels file format incorrect. Using default mapping.")
+            labels = {"0": "Clean", "1": "Dusty"}
+        
+        st.info(f"Loaded labels: {labels}")
         st.success("✅ Model and labels loaded successfully!")
         return model, labels
     except Exception as e:
@@ -118,28 +133,8 @@ def predict_image(img, model, labels):
         predictions = model.predict(img_array, verbose=0)
         predicted_class_idx = np.argmax(predictions[0])
         
-        # Debug: Show available labels and predicted index
-        st.write(f"Debug - Predicted index: {predicted_class_idx}")
-        st.write(f"Debug - Available labels: {labels}")
-        st.write(f"Debug - Label keys: {list(labels.keys())}")
-        
-        # Try different key formats
-        label_key = None
-        if str(predicted_class_idx) in labels:
-            label_key = str(predicted_class_idx)
-        elif int(predicted_class_idx) in labels:
-            label_key = int(predicted_class_idx)
-        elif predicted_class_idx in labels:
-            label_key = predicted_class_idx
-        
-        if label_key is None:
-            st.error(f"Could not find label for index {predicted_class_idx}")
-            st.error(f"Available labels: {labels}")
-            # Fallback
-            predicted_class = "Unknown"
-        else:
-            predicted_class = labels[label_key]
-        
+        # Get predicted class name
+        predicted_class = labels.get(str(predicted_class_idx), labels.get(predicted_class_idx, "Unknown"))
         confidence = predictions[0][predicted_class_idx] * 100
         
         return predicted_class, confidence, predictions[0]
@@ -206,7 +201,7 @@ def main():
                     # Show detailed predictions
                     with st.expander("View Detailed Predictions"):
                         for idx, prob in enumerate(all_predictions):
-                            class_name = labels[str(idx)]
+                            class_name = labels.get(str(idx), labels.get(idx, f"Class {idx}"))
                             st.progress(float(prob), text=f"{class_name}: {prob*100:.2f}%")
                             
                 except Exception as e:
